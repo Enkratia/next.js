@@ -1290,7 +1290,7 @@ async fn analyze_ecmascript_module_internal(
                     mut prop,
                     ast_path,
                     span,
-                    in_boolean_context,
+                    in_truthiness_context,
                 } => {
                     // Intentionally not awaited because `handle_member` reads this only when needed
                     let obj =
@@ -1307,7 +1307,9 @@ async fn analyze_ecmascript_module_internal(
                         span,
                         &analysis_state,
                         &mut analysis,
-                        MembershipType::Member { in_boolean_context },
+                        MembershipType::Member {
+                            in_truthiness_context,
+                        },
                     )
                     .await?;
                 }
@@ -3507,7 +3509,7 @@ fn extract_hot_dep_strings(arg: &JsValue<'_>) -> Option<Vec<RcStr>> {
 }
 
 enum MembershipType {
-    Member { in_boolean_context: bool },
+    Member { in_truthiness_context: bool },
     In,
 }
 
@@ -3594,8 +3596,10 @@ async fn handle_membership<'a>(
                 MembershipType::In => {
                     analysis.add_runtime_env_var_reference_existence(RcStr::from(prop));
                 }
-                MembershipType::Member { in_boolean_context } => {
-                    if in_boolean_context {
+                MembershipType::Member {
+                    in_truthiness_context,
+                } => {
+                    if in_truthiness_context {
                         analysis.add_runtime_env_var_reference_existence(RcStr::from(prop));
                     } else {
                         analysis.add_runtime_env_var_reference_read(RcStr::from(prop));
