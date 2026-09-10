@@ -6,6 +6,7 @@ import type AppPageRouteModule from '../route-modules/app-page/module'
 import { parseNormalizedAppRoute } from '../../shared/lib/router/routes/app'
 import { extractPathnameRouteParamSegmentsFromLoaderTree } from '../../build/static-paths/app/extract-pathname-route-param-segments-from-loader-tree'
 import { getParamProperties } from '../../shared/lib/router/utils/get-segment-param'
+import { InvariantError } from '../../shared/lib/invariant-error'
 
 export type OpaqueFallbackRouteParamValue = [
   /**
@@ -73,6 +74,39 @@ export function createOpaqueFallbackRouteParams(
   }
 
   return keys
+}
+
+export function getStagedFallbackParams(route: {
+  fallbackRouteParams: readonly FallbackRouteParam[] | undefined
+  remainingPrerenderableParams?: readonly FallbackRouteParam[]
+  throwOnEmptyStaticShell?: boolean
+}): OpaqueFallbackRouteParams | null {
+  const { fallbackRouteParams, remainingPrerenderableParams } = route
+  if (!fallbackRouteParams?.length) {
+    return null
+  }
+
+  if (route.throwOnEmptyStaticShell === undefined) {
+    throw new InvariantError(
+      'Expected throwOnEmptyStaticShell for a route with fallback params'
+    )
+  }
+
+  // Required shells retain their unresolved params even when a later request
+  // can complete them.
+  if (route.throwOnEmptyStaticShell || !remainingPrerenderableParams?.length) {
+    return createOpaqueFallbackRouteParams(fallbackRouteParams)
+  }
+
+  return createOpaqueFallbackRouteParams(
+    fallbackRouteParams.filter(
+      (param) =>
+        !remainingPrerenderableParams.some(
+          (prerenderableParam) =>
+            prerenderableParam.paramName === param.paramName
+        )
+    )
+  )
 }
 
 export function buildDynamicSegmentPlaceholder(

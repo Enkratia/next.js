@@ -1368,7 +1368,7 @@ async function generateDynamicFlightRenderResultWithStagesInDev(
   ctx: AppRenderContext,
   initialRequestStore: RequestStore,
   createRequestStore: (() => RequestStore) | undefined,
-  fallbackParams: OpaqueFallbackRouteParams | null
+  stagedFallbackParams: OpaqueFallbackRouteParams | null
 ): Promise<RenderResult> {
   const {
     htmlRequestId,
@@ -1521,7 +1521,7 @@ async function generateDynamicFlightRenderResultWithStagesInDev(
       getPayload,
       onError,
       shouldValidate,
-      fallbackRouteParams: fallbackParams,
+      fallbackRouteParams: stagedFallbackParams,
       getDevRenderDidError: () => didErrorObservably,
       navigationKind: {
         type: 'prefetched-client',
@@ -3018,7 +3018,10 @@ async function renderAppPage(
     null
 
   const rootParams = getRootParams(loaderTree, ctx.getDynamicParamFromSegment)
-  const fallbackParams = getRequestMeta(req, 'fallbackParams') || null
+  const stagedFallbackParams =
+    postponedState?.stagedFallbackParams !== undefined
+      ? postponedState.stagedFallbackParams
+      : (getRequestMeta(req, 'stagedFallbackParams') ?? null)
   const hmrRefreshHash = getRequestMeta(req, 'hmrRefreshHash')
 
   const createRequestStore = createRequestStoreForRender.bind(
@@ -3033,7 +3036,7 @@ async function renderAppPage(
     isHmrRefresh,
     serverComponentsHmrCache,
     renderResumeDataCache,
-    fallbackParams,
+    stagedFallbackParams,
     hmrRefreshHash
   )
   const requestStore = createRequestStore()
@@ -3078,7 +3081,7 @@ async function renderAppPage(
           ctx,
           requestStore,
           createRequestStore,
-          fallbackParams
+          stagedFallbackParams
         )
       } else if (cacheComponents && cachedNavigations) {
         // MARK: RSC cacheComponents
@@ -3125,7 +3128,7 @@ async function renderAppPage(
           postponedState,
           metadata,
           undefined, // Prevent restartable-render behavior in dev + Cache Components mode
-          fallbackParams
+          stagedFallbackParams
         )
 
         return new RenderResult(stream, {
@@ -3167,7 +3170,7 @@ async function renderAppPage(
     // and we currently we don't copy changes over when creating a new store,
     // so the restarted render wouldn't be correct.
     didExecuteServerAction ? undefined : createRequestStore,
-    fallbackParams
+    stagedFallbackParams
   )
 
   // Forward an invalid-dynamic-usage error recorded by `'use cache'` only
@@ -3543,7 +3546,7 @@ async function renderToStream(
   postponedState: PostponedState | null,
   metadata: AppPageRenderResultMetadata,
   createRequestStore: (() => RequestStore) | undefined,
-  fallbackParams: OpaqueFallbackRouteParams | null
+  stagedFallbackParams: OpaqueFallbackRouteParams | null
 ): Promise<AnyStream> {
   /* eslint-disable @next/internal/no-ambiguous-jsx -- React Client */
   // MARK: renderToStream setup
@@ -3791,7 +3794,7 @@ async function renderToStream(
               getPayload,
               onError: serverComponentsErrorHandler,
               shouldValidate: true,
-              fallbackRouteParams: fallbackParams,
+              fallbackRouteParams: stagedFallbackParams,
               getDevRenderDidError: () => didErrorObservably,
               // An initial HTML load serves the static shell; runtime and
               // dynamic content stream in afterward.
@@ -6751,7 +6754,7 @@ export async function runValidationInDevFromSnapshot(
     isHmrRefresh: message.request.isHmrRefresh,
     hmrRefreshHash: message.request.hmrRefreshHash,
     serverComponentsHmrCache: undefined,
-    fallbackParams: requestFallbackRouteParams,
+    stagedFallbackParams: fallbackRouteParams,
   })
 
   const staticInputs = toDevValidationInputs(message.staticInputs, requestStore)
@@ -9602,7 +9605,8 @@ async function prerenderToStream(
             resumeDataCache,
             cacheComponents,
             renderOpts.experimental.maxPostponedStateSizeBytes,
-            renderOpts.experimental.disableResumeDataCacheCompression
+            renderOpts.experimental.disableResumeDataCacheCompression,
+            fallbackRouteParams
           )
         }
         reactServerResult.consume()
@@ -10143,7 +10147,8 @@ async function prerenderToStream(
             originalResumeDataCache,
             cacheComponents,
             renderOpts.experimental.maxPostponedStateSizeBytes,
-            renderOpts.experimental.disableResumeDataCacheCompression
+            renderOpts.experimental.disableResumeDataCacheCompression,
+            fallbackRouteParams
           )
           originalFlightPrerenderResult.consume()
           errorServerResult.consume()
